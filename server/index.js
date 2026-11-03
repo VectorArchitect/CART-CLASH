@@ -9,7 +9,7 @@ const server = http.createServer(app);
 const io = new Server(server, { cors: { origin: '*' } });
 const PORT = process.env.PORT || 3000;
 const TICK_RATE = 30;
-const ARENA_LIMIT = 27.5;
+const ARENA_LIMIT = 27.5; // keeps carts inside the visible walls (inner face at 29)
 const BULLET_LIMIT = 29;
 const MATCH_SECONDS = 180;
 const rooms = new Map();
@@ -57,6 +57,7 @@ function finishRoom(room, reason) {
   }
   io.to(room.code).emit('gameOver', { reason, winner, players: players.map(cleanPlayer) });
 }
+
 io.on('connection', socket => {
   socket.on('createRoom', ({ name } = {}, callback = () => {}) => {
     const code = makeCode();
@@ -144,8 +145,11 @@ setInterval(() => {
     io.to(room.code).emit('state', roomSnapshot(room));
   }
 }, 1000 / TICK_RATE);
+
+// Remove abandoned waiting rooms after 30 minutes.
 setInterval(() => {
   const cutoff = Date.now() - 30 * 60 * 1000;
   for (const [code, room] of rooms) if (room.status === 'waiting' && room.createdAt < cutoff) rooms.delete(code);
 }, 60 * 1000);
+
 server.listen(PORT, () => console.log(`CART CLASH running at http://localhost:${PORT}`));
