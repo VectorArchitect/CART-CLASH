@@ -49,6 +49,7 @@ function startRoom(room) {
 function finishRoom(room, reason) {
   if (room.status !== 'playing') return;
   room.status = 'finished';
+  room.finishedAt = Date.now();
   const players = [...room.players.values()];
   let winner = null;
   if (players.length === 2) {
@@ -146,10 +147,20 @@ setInterval(() => {
   }
 }, 1000 / TICK_RATE);
 
-// Remove abandoned waiting rooms after 30 minutes.
+// Expire abandoned waiting rooms and release completed matches after their result screen has been available.
 setInterval(() => {
-  const cutoff = Date.now() - 30 * 60 * 1000;
-  for (const [code, room] of rooms) if (room.status === 'waiting' && room.createdAt < cutoff) rooms.delete(code);
+  const now = Date.now();
+  const waitingCutoff = now - 30 * 60 * 1000;
+  const finishedCutoff = now - 5 * 60 * 1000;
+
+  for (const [code, room] of rooms) {
+    if (room.status === 'waiting' && room.createdAt < waitingCutoff) {
+      io.to(code).emit('roomExpired');
+      rooms.delete(code);
+    } else if (room.status === 'finished' && room.finishedAt < finishedCutoff) {
+      rooms.delete(code);
+    }
+  }
 }, 60 * 1000);
 
 server.listen(PORT, () => console.log(`CART CLASH running at http://localhost:${PORT}`));
