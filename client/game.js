@@ -64,7 +64,7 @@ function escapeHtml(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':
 $('createBtn').onclick=()=>{setError('');$('createBtn').disabled=true;socket.emit('createRoom',{name:$('nickname').value.trim()||'Player'},res=>{$('createBtn').disabled=false;if(!res?.ok)return setError(res?.error||'Could not create room.');localId=res.playerId;roomCode=res.code;setLobby(res.snapshot);showOnly(lobby)})};
 $('joinBtn').onclick=()=>{setError('');socket.emit('joinRoom',{code:$('roomCode').value,name:$('nickname').value.trim()||'Player'},res=>{if(!res?.ok)return setError(res?.error||'Could not join room.');localId=res.playerId;roomCode=res.code;setLobby(res.snapshot);showOnly(lobby)})};
 $('copyBtn').onclick=async()=>{try{await navigator.clipboard.writeText(roomCode);showToast('Room code copied')}catch{showToast('Room code: '+roomCode)}};
-socket.on('lobbyUpdate',setLobby);socket.on('gameStarted',enterGame);socket.on('state',updateSnapshot);
+socket.on('lobbyUpdate',setLobby);socket.on('roomExpired',()=>{if(running||!roomCode)return;roomCode=null;localId=null;gameState=null;showOnly(menu);setError('This room expired after 30 minutes. Create a new room or join another one.')});socket.on('gameStarted',enterGame);socket.on('state',updateSnapshot);
 socket.on('gameOver',data=>{running=false;showOnly(result);const won=data.winner===localId;$('resultTitle').textContent=won?'VICTORY':data.winner?'DEFEAT':'DRAW';$('resultText').textContent=data.reason==='elimination'?'A cart was destroyed.': 'Time is up.'});
 socket.on('opponentDisconnected',()=>{running=false;showOnly(result);$('resultTitle').textContent='OPPONENT LEFT';$('resultText').textContent='Your opponent disconnected.'});
 $('backBtn').onclick=()=>{socket.emit('leaveRoom');location.reload()};
