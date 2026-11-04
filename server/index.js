@@ -147,18 +147,28 @@ setInterval(() => {
   }
 }, 1000 / TICK_RATE);
 
+function removeRoom(room, notification) {
+  for (const playerId of room.players.keys()) {
+    const playerSocket = io.sockets.sockets.get(playerId);
+    if (!playerSocket) continue;
+    if (notification) playerSocket.emit(notification);
+    playerSocket.leave(room.code);
+    if (playerSocket.data.roomCode === room.code) delete playerSocket.data.roomCode;
+  }
+  rooms.delete(room.code);
+}
+
 // Expire abandoned waiting rooms and release completed matches after their result screen has been available.
 setInterval(() => {
   const now = Date.now();
   const waitingCutoff = now - 30 * 60 * 1000;
   const finishedCutoff = now - 5 * 60 * 1000;
 
-  for (const [code, room] of rooms) {
+  for (const room of rooms.values()) {
     if (room.status === 'waiting' && room.createdAt < waitingCutoff) {
-      io.to(code).emit('roomExpired');
-      rooms.delete(code);
+      removeRoom(room, 'roomExpired');
     } else if (room.status === 'finished' && room.finishedAt < finishedCutoff) {
-      rooms.delete(code);
+      removeRoom(room);
     }
   }
 }, 60 * 1000);
